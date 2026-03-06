@@ -793,6 +793,14 @@ fn run_discovery_scope_picker(
             is_template: true,
             template_selects: all_services.clone(),
         },
+        SelectItem {
+            label: "🔧 Custom".to_string(),
+            description: "Pick individual scopes manually".to_string(),
+            selected: false,
+            is_fixed: false,
+            is_template: true,
+            template_selects: vec![],
+        },
     ];
     let template_count = items.len();
 
@@ -825,14 +833,15 @@ fn run_discovery_scope_picker(
         }
 
         let label = svc_entry
-            .map(|e| {
+            .and_then(|e| {
                 // Capitalize the first alias for display
-                let name = e.aliases[0];
-                let mut chars = name.chars();
-                match chars.next() {
-                    None => String::new(),
-                    Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
-                }
+                e.aliases.first().map(|name| {
+                    let mut chars = name.chars();
+                    match chars.next() {
+                        None => String::new(),
+                        Some(c) => c.to_uppercase().collect::<String>() + chars.as_str(),
+                    }
+                })
             })
             .unwrap_or_else(|| svc_key.clone());
 
@@ -864,6 +873,12 @@ fn run_discovery_scope_picker(
             let recommended = items.first().is_some_and(|i| i.selected);
             let readonly = items.get(1).is_some_and(|i| i.selected);
             let full = items.get(2).is_some_and(|i| i.selected);
+            let custom = items.get(3).is_some_and(|i| i.selected);
+
+            // Custom mode: fall through to individual scope picker
+            if custom {
+                return run_simple_scope_picker(services_filter);
+            }
 
             // Determine which services are selected
             let selected_service_keys: Vec<&str> = if full && !recommended && !readonly {
