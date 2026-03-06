@@ -238,9 +238,18 @@ async fn migrate_legacy_credentials() {
         }
     };
 
-    let client_id = creds["client_id"].as_str().unwrap_or_default();
-    let client_secret = creds["client_secret"].as_str().unwrap_or_default();
-    let refresh_token = creds["refresh_token"].as_str().unwrap_or_default();
+    let client_id = creds
+        .get("client_id")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
+    let client_secret = creds
+        .get("client_secret")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
+    let refresh_token = creds
+        .get("refresh_token")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
 
     if client_id.is_empty() || client_secret.is_empty() || refresh_token.is_empty() {
         eprintln!("[gws] Warning: Legacy credentials are incomplete, cannot migrate.");
@@ -318,15 +327,15 @@ async fn migrate_legacy_credentials() {
     // Rename legacy file to .bak
     // On Windows, `rename` fails if the destination exists. Remove old backup first.
     let backup_path = legacy_path.with_extension("enc.bak");
-    if backup_path.exists() {
-        if let Err(e) = std::fs::remove_file(&backup_path) {
+    if tokio::fs::metadata(&backup_path).await.is_ok() {
+        if let Err(e) = tokio::fs::remove_file(&backup_path).await {
             eprintln!(
                 "[gws] Warning: Failed to remove existing backup file '{}': {e}",
                 backup_path.display()
             );
         }
     }
-    if let Err(e) = std::fs::rename(&legacy_path, &backup_path) {
+    if let Err(e) = tokio::fs::rename(&legacy_path, &backup_path).await {
         eprintln!("[gws] Warning: Failed to rename legacy credentials: {e}");
         // Still succeeded in migration, just couldn't clean up
     }
